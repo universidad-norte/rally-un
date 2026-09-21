@@ -1,11 +1,68 @@
 function doGet(e) {
-  // Si la URL incluye ?view=reporte abre directamente la vista exclusiva de organizadores
-  let vista = (e && e.parameter && e.parameter.view === 'reporte') ? 'reporte' : 'index';
+  let view = (e && e.parameter && e.parameter.view) ? e.parameter.view : 'portada';
   
-  return HtmlService.createTemplateFromFile(vista)
-      .evaluate()
-      .setTitle('Sistema Rally Universitario')
+  let templateName = 'portada';
+  if (view === 'captura') templateName = 'index';
+  if (view === 'reporte') templateName = 'reporte';
+  if (view === 'itinerario') templateName = 'itinerario'; // 👈 Nueva vista de Itinerario / Impresión
+
+  let template = HtmlService.createTemplateFromFile(templateName);
+  template.scriptUrl = ScriptApp.getService().getUrl();
+
+  return template.evaluate()
+      .setTitle('Rally Universitario')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+// Obtener el Itinerario Completo (Rondas, Estaciones y Enfrentamientos)
+function getItinerarioCompleto() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheetFixture = ss.getSheetByName("Fixture");
+  
+  if (!sheetFixture) return { estaciones: {}, mapaEquipos: {}, fixture: [] };
+
+  const dataFixture = sheetFixture.getDataRange().getValues();
+  const mapaEquipos = getMapaEquipos();
+  
+  // Mapeo de Estaciones
+  let sheetEstaciones = ss.getSheetByName("Estaciones") || ss.getSheetByName("Estacion");
+  let mapaEstaciones = {};
+  if (sheetEstaciones) {
+    let dataEst = sheetEstaciones.getDataRange().getValues();
+    for (let i = 1; i < dataEst.length; i++) {
+      if (dataEst[i][0] !== "") {
+        mapaEstaciones[dataEst[i][0]] = dataEst[i][1]; // ID -> Nombre de Actividad
+      }
+    }
+  }
+
+  let listaFixture = [];
+  
+  for (let i = 1; i < dataFixture.length; i++) {
+    let numEstacion = dataFixture[i][1];
+    let ronda = dataFixture[i][2];
+    let eq1Clave = dataFixture[i][3];
+    let eq2Clave = dataFixture[i][4];
+    
+    if (ronda) {
+      listaFixture.push({
+        numEstacion: numEstacion,
+        nombreEstacion: mapaEstaciones[numEstacion] || `Estación ${numEstacion}`,
+        ronda: ronda,
+        eq1Clave: eq1Clave,
+        eq1Nombre: mapaEquipos[eq1Clave] ? mapaEquipos[eq1Clave].nombre : eq1Clave,
+        eq1Color: mapaEquipos[eq1Clave] ? mapaEquipos[eq1Clave].color : '#6c757d',
+        eq2Clave: eq2Clave,
+        eq2Nombre: mapaEquipos[eq2Clave] ? mapaEquipos[eq2Clave].nombre : eq2Clave,
+        eq2Color: mapaEquipos[eq2Clave] ? mapaEquipos[eq2Clave].color : '#6c757d'
+      });
+    }
+  }
+
+  return {
+    mapaEquipos: mapaEquipos,
+    fixture: listaFixture
+  };
 }
 
 // Obtener la lista dinámica de estaciones desde la hoja "Estaciones" o "Estacion"

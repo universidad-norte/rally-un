@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    body { 
+      background-color: #f4f6f9; 
+      padding: 15px; 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    .card-custom { 
+      border-radius: 16px; 
+      box-shadow: 0 6px 15px rgba(0,0,0,0.12); 
+      padding: 20px;
+    }
+
+    .badge-color {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+      border: 1px solid rgba(0,0,0,0.2);
+    }
+
+    /* Reglas para Formato de Impresión */
+    @media print {
+      body { background-color: #ffffff !important; padding: 0 !important; }
+      .no-print { display: none !important; }
+      .card-custom { box-shadow: none !important; padding: 0 !important; border: none !important; }
+      .table { border: 1px solid #000 !important; }
+      .table th, .table td { border: 1px solid #000 !important; color: #000 !important; }
+      .badge-color { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container text-center" style="max-width: 900px;">
+    
+    <!-- ENCABEZADO -->
+    <h1 class="fw-bold my-2 text-primary no-print" style="font-size: 1.8rem;">🏁 ITINERARIO DEL RALLY 🏁</h1>
+    <h2 class="d-none d-print-block text-center fw-bold mb-3">Rally Universitario - Itinerario Oficial</h2>
+
+    <div class="card card-custom mb-4">
+      
+      <!-- CONTROLES DE FILTRO E IMPRESIÓN (no salen en la impresión) -->
+      <div class="row g-3 align-items-center mb-3 no-print">
+        <div class="col-md-6 text-start">
+          <label for="selectEquipo" class="form-label fw-bold">Filtrar por Equipo:</label>
+          <select id="selectEquipo" class="form-select form-select-lg" onchange="filtrarTabla()">
+            <option value="TODOS">-- Ver Todos los Equipos --</option>
+          </select>
+        </div>
+        <div class="col-md-6 text-end">
+          <button class="btn btn-success btn-lg fw-bold w-100" onclick="window.print()">
+            🖨️ Imprimir Itinerario
+          </button>
+        </div>
+      </div>
+
+      <!-- MENSAJE DE ESTADO -->
+      <div id="msgCargando" class="fw-bold text-muted my-4">⏳ Cargando programación de rondas...</div>
+
+      <!-- TABLA DE ITINERARIO -->
+      <div id="areaTabla" class="table-responsive d-none">
+        <table class="table table-striped table-bordered align-middle text-center m-0">
+          <thead class="table-dark">
+            <tr>
+              <th style="width: 10%;">Ronda</th>
+              <th style="width: 30%;">Estación / Actividad</th>
+              <th style="width: 30%;">Equipo 1</th>
+              <th style="width: 30%;">Equipo 2</th>
+            </tr>
+          </thead>
+          <tbody id="tablaCuerpo">
+            <!-- Carga dinámicamente -->
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    let datosCargados = null;
+
+    document.addEventListener("DOMContentLoaded", function() {
+      cargarItinerario();
+    });
+
+    function cargarItinerario() {
+      google.script.run.withSuccessHandler(function(res) {
+        datosCargados = res;
+        
+        // Llenar selector de equipos
+        const select = document.getElementById('selectEquipo');
+        select.innerHTML = '<option value="TODOS">-- Ver Todos los Equipos --</option>';
+        
+        Object.keys(res.mapaEquipos).forEach(clave => {
+          let eq = res.mapaEquipos[clave];
+          let option = document.createElement('option');
+          option.value = clave;
+          option.text = `${eq.nombre}`;
+          select.appendChild(option);
+        });
+
+        document.getElementById('msgCargando').classList.add('d-none');
+        document.getElementById('areaTabla').classList.remove('d-none');
+        
+        filtrarTabla();
+      }).getItinerarioCompleto();
+    }
+
+    function filtrarTabla() {
+      if (!datosCargados) return;
+
+      const equipoSel = document.getElementById('selectEquipo').value;
+      const tbody = document.getElementById('tablaCuerpo');
+      tbody.innerHTML = "";
+
+      let listaFiltrada = datosCargados.fixture;
+
+      // Filtrar si seleccionaron un equipo específico
+      if (equipoSel !== "TODOS") {
+        listaFiltrada = listaFiltrada.filter(item => 
+          item.eq1Clave === equipoSel || item.eq2Clave === equipoSel
+        );
+        // Ordenar por ronda secuencial para ese equipo
+        listaFiltrada.sort((a, b) => a.ronda - b.ronda);
+      } else {
+        // Ordenar por Ronda y luego Estación
+        listaFiltrada.sort((a, b) => (a.ronda - b.ronda) || (a.numEstacion - b.numEstacion));
+      }
+
+      if (listaFiltrada.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-muted fw-bold">No hay enfrentamientos programados.</td></tr>`;
+        return;
+      }
+
+      listaFiltrada.forEach(item => {
+        let esEq1Destacado = (equipoSel !== "TODOS" && item.eq1Clave === equipoSel) ? 'fw-bold table-warning' : '';
+        let esEq2Destacado = (equipoSel !== "TODOS" && item.eq2Clave === equipoSel) ? 'fw-bold table-warning' : '';
+
+        let rowHtml = `<tr>
+          <td class="fw-bold fs-5">R${item.ronda}</td>
+          <td class="text-start fw-bold">Estación ${item.numEstacion}<br><small class="text-muted">${item.nombreEstacion}</small></td>
+          <td class="text-start ${esEq1Destacado}">
+            <span class="badge-color" style="background-color: ${item.eq1Color};"></span>
+            ${item.eq1Nombre}
+          </td>
+          <td class="text-start ${esEq2Destacado}">
+            <span class="badge-color" style="background-color: ${item.eq2Color};"></span>
+            ${item.eq2Nombre}
+          </td>
+        </tr>`;
+        tbody.innerHTML += rowHtml;
+      });
+    }
+  </script>
+</body>
+</html>
