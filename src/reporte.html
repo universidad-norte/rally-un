@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    body { background-color: #f4f6f9; padding: 12px; font-size: 1.1rem; }
+    .card-custom { border-radius: 16px; box-shadow: 0 6px 15px rgba(0,0,0,0.12); padding: 20px 15px; }
+    .badge-color {
+      display: inline-block;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      margin-right: 10px;
+      vertical-align: middle;
+      border: 2px solid rgba(0,0,0,0.2);
+    }
+    .table-xl td, .table-xl th {
+      padding: 14px 8px !important;
+      font-size: 1.2rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container text-center px-1" style="max-width: 600px;">
+    <h1 class="fw-bold my-3 text-primary" style="font-size: 1.9rem;">🏁 RALLY UNIVERSITARIO 🏁</h1>
+
+    <!-- LOGIN CON PIN -->
+    <div id="area-login" class="card card-custom">
+      <h3 class="fw-bold text-dark">🔒 Acceso Privado</h3>
+      <p class="text-muted fs-5">Ingresa el PIN de organizador:</p>
+      
+      <div class="my-3">
+        <input type="password" id="txtPin" class="form-control text-center fw-bold fs-2 my-2" placeholder="****" maxlength="8" style="letter-spacing: 5px;">
+        <button class="btn btn-primary btn-lg w-100 fw-bold fs-4 py-2 mt-2" onclick="verificarAcceso()">Ingresar</button>
+      </div>
+      <div id="msgError" class="text-danger fw-bold fs-5"></div>
+    </div>
+
+    <!-- TABLA DE POSICIONES -->
+    <div id="area-reporte" class="card card-custom d-none">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h3 class="fw-bold m-0 text-start" style="font-size: 1.4rem;">📊 Posiciones</h3>
+        <button class="btn btn-primary fw-bold" onclick="cargarReporte()">🔄 Refrescar</button>
+      </div>
+      <p class="text-muted text-start small mb-3">Victoria = 3 Pts | Empate = 1 Pt</p>
+      
+      <div class="table-responsive">
+        <table class="table table-striped table-xl align-middle m-0">
+          <thead class="table-dark">
+            <tr>
+              <th style="width: 15%;">#</th>
+              <th class="text-start">Equipo</th>
+              <th style="width: 25%;">Pts</th>
+            </tr>
+          </thead>
+          <tbody id="tablaCuerpo">
+            <!-- Carga dinámicamente -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function verificarAcceso() {
+      const pin = document.getElementById('txtPin').value;
+      if (!pin) return;
+
+      document.getElementById('msgError').innerText = "";
+      
+      google.script.run.withSuccessHandler(function(esValido) {
+        if (esValido) {
+          document.getElementById('area-login').classList.add('d-none');
+          document.getElementById('area-reporte').classList.remove('d-none');
+          cargarReporte();
+        } else {
+          document.getElementById('msgError').innerText = "❌ PIN Incorrecto.";
+        }
+      }).validarPinOrganizador(pin);
+    }
+
+    function cargarReporte() {
+      google.script.run.withSuccessHandler(function(ranking) {
+        let html = "";
+        ranking.forEach((item, index) => {
+          html += `<tr>
+            <td class="fw-bold">#${index + 1}</td>
+            <td class="text-start fw-bold">
+              <span class="badge-color" style="background-color: ${item.color};"></span>
+              ${item.nombre}
+            </td>
+            <td><span class="badge bg-primary fs-5 px-3 py-2">${item.pts}</span></td>
+          </tr>`;
+        });
+        document.getElementById('tablaCuerpo').innerHTML = html;
+      }).getTablaPosiciones();
+    }
+  </script>
+</body>
+</html>

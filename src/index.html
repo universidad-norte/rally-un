@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    /* Ajustes optimizados para Celular */
+    body { 
+      background-color: #f4f6f9; 
+      padding: 12px; 
+      font-size: 1.1rem; /* Tamaño de letra base más grande */
+    }
+    
+    .card-custom { 
+      border-radius: 16px; 
+      box-shadow: 0 6px 15px rgba(0,0,0,0.12); 
+      padding: 20px 15px;
+    }
+
+    /* Selector de estación XL */
+    .form-select-lg {
+      font-size: 1.25rem !important;
+      padding: 12px 15px !important;
+      font-weight: bold;
+      border: 2px solid #0d6efd;
+      border-radius: 10px;
+    }
+
+    /* Botones de Equipos gigantes y fáciles de presionar */
+    .btn-equipo { 
+      font-size: 1.35rem !important; 
+      font-weight: 800 !important; 
+      padding: 22px 15px !important; 
+      border: none;
+      border-radius: 12px;
+      color: #ffffff;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      transition: transform 0.1s active;
+      line-height: 1.2;
+    }
+
+    .btn-equipo:active {
+      transform: scale(0.97);
+    }
+
+    .txt-ronda {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #0d6efd;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .txt-subtitulo {
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container text-center px-1" style="max-width: 500px;">
+    <!-- Título Principal XL -->
+    <h1 class="fw-bold my-3 text-primary" style="font-size: 1.9rem;">🏁 RALLY UNIVERSITARIO 🏁</h1>
+    
+    <div id="vista-captura" class="card card-custom">
+      <h3 class="mb-3 fw-bold text-dark" style="font-size: 1.4rem;">Panel de Estación</h3>
+      
+      <div class="mb-3 text-start">
+        <label for="selectEstacion" class="form-label fw-bold text-secondary" style="font-size: 1.1rem;">Selecciona tu Estación:</label>
+        <!-- Selector extra grande -->
+        <select id="selectEstacion" class="form-select form-select-lg" onchange="confirmarYBloquearEstacion()">
+          <option value="">Cargando estaciones...</option>
+        </select>
+        <div id="txtBloqueo" class="mt-2 text-danger fw-bold d-none fs-6">
+          🔒 Estación asignada y bloqueada.
+        </div>
+      </div>
+
+      <div id="areaEnfrentamiento" class="d-none">
+        <hr class="my-3" style="border-top: 2px solid #ccc;">
+        <div class="txt-ronda mb-1" id="txtRonda">Ronda X</div>
+        <p class="txt-subtitulo text-dark mb-3">Elige al ganador:</p>
+        
+        <div class="d-grid gap-3 my-2">
+          <!-- Botón Equipo 1 -->
+          <button id="btnEq1" class="btn btn-equipo" onclick="guardarGanador('EQ1')">Equipo 1</button>
+          
+          <!-- Botón Empate -->
+          <button class="btn btn-warning btn-equipo text-dark" style="background-color: #ffc107;" onclick="guardarGanador('EMPATE')">
+            🤝 EMPATE (1 PT C/U)
+          </button>
+          
+          <!-- Botón Equipo 2 -->
+          <button id="btnEq2" class="btn btn-equipo" onclick="guardarGanador('EQ2')">Equipo 2</button>
+        </div>
+      </div>
+
+      <!-- Mensajes de Estado Legibles -->
+      <div id="msgStatus" class="mt-3 fw-bold text-primary fs-5"></div>
+    </div>
+  </div>
+
+  <script>
+    let dueloActual = null;
+
+    document.addEventListener("DOMContentLoaded", function() {
+      cargarOpcionesEstaciones();
+    });
+
+    function cargarOpcionesEstaciones() {
+      google.script.run.withSuccessHandler(function(estaciones) {
+        const select = document.getElementById('selectEstacion');
+        select.innerHTML = '<option value="">-- Seleccionar Estación --</option>';
+        
+        if (estaciones && estaciones.length > 0) {
+          estaciones.forEach(function(est) {
+            let option = document.createElement('option');
+            option.value = est.id;
+            option.text = est.nombre;
+            select.appendChild(option);
+          });
+        } else {
+          select.innerHTML = '<option value="">No se encontraron estaciones</option>';
+        }
+      }).getListaEstaciones();
+    }
+
+    function confirmarYBloquearEstacion() {
+      const select = document.getElementById('selectEstacion');
+      const numEstacion = select.value;
+      if (!numEstacion) return;
+
+      select.disabled = true;
+      document.getElementById('txtBloqueo').classList.remove('d-none');
+      
+      cargarEnfrentamiento();
+    }
+
+    function cargarEnfrentamiento() {
+      const numEstacion = document.getElementById('selectEstacion').value;
+      if(!numEstacion) return;
+
+      document.getElementById('msgStatus').innerText = "⏳ Cargando duelo...";
+      document.getElementById('areaEnfrentamiento').classList.add('d-none');
+      
+      google.script.run.withSuccessHandler(function(data) {
+        if(!data) {
+          document.getElementById('areaEnfrentamiento').classList.add('d-none');
+          document.getElementById('msgStatus').innerHTML = "🎉 <br>¡Todas las rondas de esta estación han finalizado!";
+          return;
+        }
+        dueloActual = data;
+        document.getElementById('txtRonda').innerText = "Ronda " + data.ronda;
+        
+        const btn1 = document.getElementById('btnEq1');
+        btn1.innerText = "🏆 " + data.equipo1.nombre;
+        btn1.style.backgroundColor = data.equipo1.color;
+        
+        const btn2 = document.getElementById('btnEq2');
+        btn2.innerText = "🏆 " + data.equipo2.nombre;
+        btn2.style.backgroundColor = data.equipo2.color;
+        
+        document.getElementById('areaEnfrentamiento').classList.remove('d-none');
+        document.getElementById('msgStatus').innerText = "";
+      }).getEnfrentamientoActual(numEstacion);
+    }
+
+    function guardarGanador(opcion) {
+      if(!dueloActual) return;
+      
+      let ganadorSel = "";
+      if(opcion === 'EQ1') ganadorSel = dueloActual.equipo1.clave;
+      if(opcion === 'EQ2') ganadorSel = dueloActual.equipo2.clave;
+      if(opcion === 'EMPATE') ganadorSel = "EMPATE";
+
+      document.getElementById('areaEnfrentamiento').classList.add('d-none');
+      document.getElementById('msgStatus').innerText = "💾 Guardando resultado...";
+
+      google.script.run.withSuccessHandler(function(res) {
+        document.getElementById('msgStatus').innerText = "✅ ¡Resultado guardado!";
+        cargarEnfrentamiento();
+      }).registrarResultado(dueloActual.row, ganadorSel, dueloActual.equipo1.clave, dueloActual.equipo2.clave);
+    }
+  </script>
+</body>
+</html>
