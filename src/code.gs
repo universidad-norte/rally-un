@@ -4,17 +4,87 @@ function doGet(e) {
   let templateName = 'portada';
   if (view === 'captura') templateName = 'index';
   if (view === 'reporte') templateName = 'reporte';
-  if (view === 'itinerario') templateName = 'itinerario'; // 👈 Nueva vista de Itinerario / Impresión
+  if (view === 'itinerario') templateName = 'itinerario';
+  if (view === 'dashboard') templateName = 'dashboard'; // 👈 Nueva vista de Dashboard General
 
   let template = HtmlService.createTemplateFromFile(templateName);
   template.scriptUrl = ScriptApp.getService().getUrl();
 
   return template.evaluate()
-      .setTitle('Rally Universitario')
+      .setTitle('Rally Universitario - Dashboard')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
-// Obtener el Itinerario Completo (Rondas, Estaciones y Enfrentamientos)
+// Obtener datos consolidados para el Dashboard General
+function getDatosDashboard() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheetFixture = ss.getSheetByName("Fixture");
+  
+  if (!sheetFixture) return { estaciones: [], rondas: [], matriz: {}, resumen: {} };
+
+  const dataFixture = sheetFixture.getDataRange().getValues();
+  const mapaEquipos = getMapaEquipos();
+  
+  // Nombres de Estaciones
+  let sheetEstaciones = ss.getSheetByName("Estaciones") || ss.getSheetByName("Estacion");
+  let mapaEstaciones = {};
+  if (sheetEstaciones) {
+    let dataEst = sheetEstaciones.getDataRange().getValues();
+    for (let i = 1; i < dataEst.length; i++) {
+      if (dataEst[i][0] !== "") {
+        mapaEstaciones[dataEst[i][0]] = dataEst[i][1];
+      }
+    }
+  }
+
+  let matrizEnfrentamientos = {};
+  let totalPartidos = 0;
+  let finalizados = 0;
+
+  for (let i = 1; i < dataFixture.length; i++) {
+    let numEstacion = dataFixture[i][1];
+    let ronda = dataFixture[i][2];
+    let eq1Val = String(dataFixture[i][3]).trim();
+    let eq2Val = String(dataFixture[i][4]).trim();
+    let ganadorVal = String(dataFixture[i][5]).trim();
+    let estatus = String(dataFixture[i][6]).trim();
+
+    if (ronda && numEstacion) {
+      totalPartidos++;
+      if (estatus === "FINALIZADO") finalizados++;
+
+      let infoEq1 = mapaEquipos[eq1Val] || { nombre: eq1Val, color: '#6c757d' };
+      let infoEq2 = mapaEquipos[eq2Val] || { nombre: eq2Val, color: '#6c757d' };
+      let infoGanador = mapaEquipos[ganadorVal] || null;
+
+      let claveMatriz = `E${numEstacion}-R${ronda}`;
+      matrizEnfrentamientos[claveMatriz] = {
+        estacion: numEstacion,
+        ronda: ronda,
+        eq1Nombre: infoEq1.nombre,
+        eq1Color: infoEq1.color,
+        eq2Nombre: infoEq2.nombre,
+        eq2Color: infoEq2.color,
+        estatus: estatus,
+        ganador: ganadorVal,
+        ganadorNombre: infoGanador ? infoGanador.nombre : (ganadorVal === 'EMPATE' ? '🤝 Empate' : '')
+      };
+    }
+  }
+
+  return {
+    mapaEstaciones: mapaEstaciones,
+    matriz: matrizEnfrentamientos,
+    resumen: {
+      total: totalPartidos,
+      finalizados: finalizados,
+      pendientes: totalPartidos - finalizados,
+      porcentaje: totalPartidos > 0 ? Math.round((finalizados / totalPartidos) * 100) : 0
+    }
+  };
+}
+
+// Obtener Itinerario Completo para itinerario.html
 function getItinerarioCompleto() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheetFixture = ss.getSheetByName("Fixture");
@@ -31,7 +101,7 @@ function getItinerarioCompleto() {
     let dataEst = sheetEstaciones.getDataRange().getValues();
     for (let i = 1; i < dataEst.length; i++) {
       if (dataEst[i][0] !== "") {
-        mapaEstaciones[dataEst[i][0]] = dataEst[i][1]; // ID -> Nombre de Actividad
+        mapaEstaciones[dataEst[i][0]] = dataEst[i][1];
       }
     }
   }
@@ -41,20 +111,25 @@ function getItinerarioCompleto() {
   for (let i = 1; i < dataFixture.length; i++) {
     let numEstacion = dataFixture[i][1];
     let ronda = dataFixture[i][2];
-    let eq1Clave = dataFixture[i][3];
-    let eq2Clave = dataFixture[i][4];
+    let eq1Val = String(dataFixture[i][3]).trim(); // "Equipo 10" o "10" o "J"
+    let eq2Val = String(dataFixture[i][4]).trim(); // "Equipo 17" o "17" o "Q"
     
-    if (ronda) {
+    if (ronda && eq1Val !== "") {
+      // Buscar información del Equipo 1
+      let infoEq1 = mapaEquipos[eq1Val] || { nombre: eq1Val, color: '#6c757d' };
+      // Buscar información del Equipo 2
+      let infoEq2 = mapaEquipos[eq2Val] || { nombre: eq2Val, color: '#6c757d' };
+
       listaFixture.push({
         numEstacion: numEstacion,
         nombreEstacion: mapaEstaciones[numEstacion] || `Estación ${numEstacion}`,
         ronda: ronda,
-        eq1Clave: eq1Clave,
-        eq1Nombre: mapaEquipos[eq1Clave] ? mapaEquipos[eq1Clave].nombre : eq1Clave,
-        eq1Color: mapaEquipos[eq1Clave] ? mapaEquipos[eq1Clave].color : '#6c757d',
-        eq2Clave: eq2Clave,
-        eq2Nombre: mapaEquipos[eq2Clave] ? mapaEquipos[eq2Clave].nombre : eq2Clave,
-        eq2Color: mapaEquipos[eq2Clave] ? mapaEquipos[eq2Clave].color : '#6c757d'
+        eq1Clave: eq1Val,
+        eq1Nombre: infoEq1.nombre,
+        eq1Color: infoEq1.color,
+        eq2Clave: eq2Val,
+        eq2Nombre: infoEq2.nombre,
+        eq2Color: infoEq2.color
       });
     }
   }
@@ -100,24 +175,36 @@ function validarPinOrganizador(pinIngresado) {
   return pinIngresado === PIN_CORRECTO;
 }
 
-// Función para obtener el mapeo de Equipos (Nombre y Color Hexadecimal)
+// Obtener mapa flexible de Equipos (Acepta Clave, Número o Nombre)
 function getMapaEquipos() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetEquipos = ss.getSheetByName("Equipos");
+  const sheetEquipos = ss.getSheetByName("Equipos") || ss.getSheetByName("Equipo");
+  
+  if (!sheetEquipos) return {};
+
   const data = sheetEquipos.getDataRange().getValues();
-  
   let mapaEquipos = {};
-  
+
   for (let i = 1; i < data.length; i++) {
-    let letra = data[i][1];     // Columna B: Letra / Clave (A, B, C...)
-    let color = data[i][3];    // Columna D: Código Hexadecimal (ej. #FF0000)
-    let nombre = data[i][4];   // Columna E: Nombre del Equipo
-    
-    if (letra) {
-      mapaEquipos[letra] = {
-        nombre: nombre || `Equipo ${letra}`,
+    let numEquipo = String(data[i][0]).trim();  // Columna A: ID (1, 2, 3...)
+    let letraClave = String(data[i][1]).trim(); // Columna B: Letra (A, B, C...)
+    let color = String(data[i][3]).trim();      // Columna D: Hexadecimal (#FF0000)
+    let nombre = String(data[i][4]).trim();     // Columna E: Nombre asignado
+
+    if (numEquipo !== "" && numEquipo !== "undefined") {
+      let infoEquipo = {
+        id: numEquipo,
+        nombre: nombre || `Equipo ${numEquipo}`,
         color: color || '#6c757d'
       };
+
+      // Guardamos la referencia principal por ID único
+      mapaEquipos[numEquipo] = infoEquipo;
+      
+      // Alias para búsqueda rápida en otras funciones
+      mapaEquipos[`Equipo ${numEquipo}`] = infoEquipo;
+      mapaEquipos[letraClave] = infoEquipo;
+      if (nombre) mapaEquipos[nombre] = infoEquipo;
     }
   }
   return mapaEquipos;
@@ -184,41 +271,57 @@ function registrarResultado(row, ganadorClave, eq1Clave, eq2Clave) {
 }
 
 // Obtener tabla general de puntuaciones para el Reporte
+// Obtener Tabla General de Posiciones sin duplicados (Exactamente 20 equipos)
 function getTablaPosiciones() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheetFixture = ss.getSheetByName("Fixture");
-  const data = sheetFixture.getDataRange().getValues();
+  const dataFixture = sheetFixture.getDataRange().getValues();
   const mapaEquipos = getMapaEquipos();
   
-  let puntos = {};
+  // 1. Usar un Map/Diccionario único filtrando solo por ID numérico del equipo
+  let tablaPuntos = {};
   
   Object.keys(mapaEquipos).forEach(clave => {
-    puntos[clave] = {
-      nombre: mapaEquipos[clave].nombre,
-      color: mapaEquipos[clave].color,
-      pts: 0
-    };
+    let eq = mapaEquipos[clave];
+    // Solo registrar si la clave es el ID único (ej. "1", "2", "20")
+    if (clave === eq.id && !tablaPuntos[eq.id]) {
+      tablaPuntos[eq.id] = {
+        id: eq.id,
+        nombre: eq.nombre,
+        color: eq.color,
+        pts: 0
+      };
+    }
   });
-  
-  for (let i = 1; i < data.length; i++) {
-    let eq1 = data[i][3];
-    let eq2 = data[i][4];
-    let ganador = data[i][5];
-    let estatus = data[i][6];
+
+  // 2. Función auxiliar para encontrar el ID único a partir de cualquier texto ("Equipo 1", "A", "1", etc.)
+  function obtenerIdEquipo(valor) {
+    let valStr = String(valor).trim();
+    if (mapaEquipos[valStr]) return mapaEquipos[valStr].id;
+    return null;
+  }
+
+  // 3. Sumar puntos de partidos finalizados
+  for (let i = 1; i < dataFixture.length; i++) {
+    let eq1Val = dataFixture[i][3];
+    let eq2Val = dataFixture[i][4];
+    let ganadorVal = dataFixture[i][5];
+    let estatus = dataFixture[i][6];
+    
+    let ptsEq1 = Number(dataFixture[i][7]) || 0;
+    let ptsEq2 = Number(dataFixture[i][8]) || 0;
     
     if (estatus === "FINALIZADO") {
-      if (ganador === eq1) {
-        if (puntos[eq1]) puntos[eq1].pts += 3;
-      } else if (ganador === eq2) {
-        if (puntos[eq2]) puntos[eq2].pts += 3;
-      } else if (ganador === "EMPATE") {
-        if (puntos[eq1]) puntos[eq1].pts += 1;
-        if (puntos[eq2]) puntos[eq2].pts += 1;
-      }
+      let id1 = obtenerIdEquipo(eq1Val);
+      let id2 = obtenerIdEquipo(eq2Val);
+      
+      if (id1 && tablaPuntos[id1]) tablaPuntos[id1].pts += ptsEq1;
+      if (id2 && tablaPuntos[id2]) tablaPuntos[id2].pts += ptsEq2;
     }
   }
-  
-  let ranking = Object.values(puntos);
+
+  // 4. Convertir a Arreglo y ordenar descendentemente por Puntos
+  let ranking = Object.values(tablaPuntos);
   ranking.sort((a, b) => b.pts - a.pts);
   
   return ranking;

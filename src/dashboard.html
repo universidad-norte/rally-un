@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    body { 
+      background-color: #0f172a; 
+      color: #f8fafc;
+      padding: 15px; 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    .card-dark { 
+      background-color: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px; 
+      padding: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+
+    .badge-color {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 4px;
+      vertical-align: middle;
+      border: 1px solid rgba(255,255,255,0.4);
+    }
+
+    .celda-partido {
+      font-size: 0.85rem;
+      padding: 8px 6px !important;
+      border: 1px solid #334155 !important;
+      min-width: 140px;
+    }
+
+    .status-finalizado {
+      background-color: rgba(16, 185, 129, 0.15) !important;
+      border-left: 4px solid #10b981 !important;
+    }
+
+    .status-pendiente {
+      background-color: rgba(100, 116, 139, 0.1) !important;
+    }
+
+    .txt-ganador {
+      font-size: 0.75rem;
+      font-weight: bold;
+      color: #34d399;
+    }
+
+    @media print {
+      body { background-color: #ffffff !important; color: #000000 !important; padding: 0 !important; }
+      .no-print { display: none !important; }
+      .card-dark { background-color: #ffffff !important; border: none !important; color: #000000 !important; }
+      .table { border: 1px solid #000 !important; }
+      .table th, .table td { border: 1px solid #000 !important; color: #000 !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container-fluid text-center">
+    
+    <!-- ENCABEZADO -->
+    <div class="d-flex justify-content-between align-items-center my-3 no-print">
+      <h2 class="fw-bold text-primary m-0">🏁 DASHBOARD GENERAL DEL RALLY 🏁</h2>
+      <div>
+        <button class="btn btn-outline-light me-2" onclick="cargarDashboard()">🔄 Actualizar</button>
+        <button class="btn btn-success fw-bold" onclick="window.print()">🖨️ Imprimir Matriz</button>
+      </div>
+    </div>
+
+    <!-- TARJETAS DE MÉTRICAS / AVANCE -->
+    <div class="row g-3 mb-4 no-print">
+      <div class="col-md-3">
+        <div class="card-dark text-center py-3">
+          <div class="text-muted small">TOTAL DE ENCUENTROS</div>
+          <div id="txtTotal" class="fs-2 fw-bold text-info">100</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card-dark text-center py-3">
+          <div class="text-muted small">COMPLETADOS</div>
+          <div id="txtFinalizados" class="fs-2 fw-bold text-success">0</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card-dark text-center py-3">
+          <div class="text-muted small">PENDIENTES</div>
+          <div id="txtPendientes" class="fs-2 fw-bold text-warning">100</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card-dark text-center py-3">
+          <div class="text-muted small">AVANCE GENERAL</div>
+          <div id="txtPorcentaje" class="fs-2 fw-bold text-primary">0%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLA MATRIZ DE ESTACIONES VS RONDAS -->
+    <div class="card-dark">
+      <div id="msgCargando" class="fw-bold text-muted my-4">⏳ Cargando matriz general de encuentros...</div>
+
+      <div id="areaTabla" class="table-responsive d-none">
+        <table class="table table-dark table-bordered align-middle text-center m-0">
+          <thead>
+            <tr class="table-active">
+              <th style="width: 12%;">Estación / Actividad</th>
+              <th style="width: 8.8%;">R1</th>
+              <th style="width: 8.8%;">R2</th>
+              <th style="width: 8.8%;">R3</th>
+              <th style="width: 8.8%;">R4</th>
+              <th style="width: 8.8%;">R5</th>
+              <th style="width: 8.8%;">R6</th>
+              <th style="width: 8.8%;">R7</th>
+              <th style="width: 8.8%;">R8</th>
+              <th style="width: 8.8%;">R9</th>
+              <th style="width: 8.8%;">R10</th>
+            </tr>
+          </thead>
+          <tbody id="tablaMatriz">
+            <!-- Carga dinámicamente -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      cargarDashboard();
+    });
+
+    function cargarDashboard() {
+      google.script.run.withSuccessHandler(function(res) {
+        // Actualizar Tarjetas de Resumen
+        document.getElementById('txtTotal').innerText = res.resumen.total;
+        document.getElementById('txtFinalizados').innerText = res.resumen.finalizados;
+        document.getElementById('txtPendientes').innerText = res.resumen.pendientes;
+        document.getElementById('txtPorcentaje').innerText = res.resumen.porcentaje + "%";
+
+        const tbody = document.getElementById('tablaMatriz');
+        tbody.innerHTML = "";
+
+        // Generar 10 filas (1 por cada estación)
+        for (let e = 1; e <= 10; e++) {
+          let nombreActividad = res.mapaEstaciones[e] || '';
+          let rowHtml = `<tr>
+            <td class="text-start fw-bold bg-secondary text-white">
+              Estación ${e}<br><small class="text-light opacity-75">${nombreActividad}</small>
+            </td>`;
+
+          // Generar 10 columnas (1 por cada ronda)
+          for (let r = 1; r <= 10; r++) {
+            let clave = `E${e}-R${r}`;
+            let match = res.matriz[clave];
+
+            if (match) {
+              let claseEstatus = match.estatus === "FINALIZADO" ? "status-finalizado" : "status-pendiente";
+              let textoGanador = match.estatus === "FINALIZADO" ? `<div class="txt-ganador">🏆 ${match.ganadorNombre}</div>` : '';
+
+              rowHtml += `<td class="celda-partido ${claseEstatus}">
+                <div>
+                  <span class="badge-color" style="background-color: ${match.eq1Color};"></span>${match.eq1Nombre}
+                </div>
+                <div class="text-muted small fw-bold my-1">vs</div>
+                <div>
+                  <span class="badge-color" style="background-color: ${match.eq2Color};"></span>${match.eq2Nombre}
+                </div>
+                ${textoGanador}
+              </td>`;
+            } else {
+              rowHtml += `<td class="celda-partido text-muted">-</td>`;
+            }
+          }
+
+          rowHtml += `</tr>`;
+          tbody.innerHTML += rowHtml;
+        }
+
+        document.getElementById('msgCargando').classList.add('d-none');
+        document.getElementById('areaTabla').classList.remove('d-none');
+      }).getDatosDashboard();
+    }
+  </script>
+</body>
+</html>
