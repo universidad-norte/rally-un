@@ -5,159 +5,371 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <style>
     body { 
-      background-color: #f4f6f9; 
-      padding: 15px; 
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f1f5f9; 
+      padding: 12px; 
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     }
     
     .card-custom { 
       border-radius: 16px; 
-      box-shadow: 0 6px 15px rgba(0,0,0,0.12); 
-      padding: 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+      background: #ffffff;
+      padding: 16px;
+    }
+
+    .form-select-lg {
+      font-size: 1.1rem !important;
+      padding: 12px 15px !important;
+      font-weight: bold;
+      border: 2px solid #0d6efd;
+      border-radius: 12px;
     }
 
     .badge-color {
       display: inline-block;
-      width: 16px;
-      height: 16px;
+      width: 14px;
+      height: 14px;
       border-radius: 50%;
       margin-right: 6px;
       vertical-align: middle;
       border: 1px solid rgba(0,0,0,0.2);
     }
 
-    /* Reglas para Formato de Impresión */
+    /* CONTENEDOR GRID RESPONSIVO */
+    .grid-itinerario {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
+    /* TARJETA DE ENCUENTRO */
+    .tarjeta-ronda {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .tarjeta-ronda:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    /* ESTADO FINALIZADO */
+    .tarjeta-finalizado {
+      background-color: #f0fdf4 !important;
+      border-color: #bbf7d0 !important;
+    }
+
+    .badge-finalizado {
+      background-color: #16a34a;
+      color: #ffffff;
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-pendiente {
+      background-color: #e2e8f0;
+      color: #475569;
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+
+    .ronda-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed #cbd5e1;
+    }
+
+    .ronda-num {
+      font-weight: 800;
+      font-size: 1rem;
+      color: #0f172a;
+    }
+
+    .estacion-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 2px;
+    }
+
+    .estacion-sub {
+      font-size: 0.825rem;
+      color: #64748b;
+      margin-bottom: 12px;
+    }
+
+    .rival-box {
+      background-color: #f8fafc;
+      border-radius: 8px;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      border: 1px solid #f1f5f9;
+    }
+
+    .tarjeta-finalizado .rival-box {
+      background-color: #ffffff;
+    }
+
     @media print {
-      body { background-color: #ffffff !important; padding: 0 !important; }
       .no-print { display: none !important; }
-      .card-custom { box-shadow: none !important; padding: 0 !important; border: none !important; }
-      .table { border: 1px solid #000 !important; }
-      .table th, .table td { border: 1px solid #000 !important; color: #000 !important; }
-      .badge-color { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body { background-color: #ffffff !important; padding: 0 !important; }
+      .card-custom { box-shadow: none !important; border: none !important; padding: 0 !important; }
+      .grid-itinerario { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+    }
+
+    /* BOTONES DE EVALUACIÓN */
+    .rating-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid #f1f5f9;
+    }
+
+
+    .btn-rating {
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-rating:hover {
+      background-color: #e2e8f0;
+      transform: scale(1.05);
+    }
+
+    .btn-rating.selected-like {
+      background-color: #dcfce7;
+      border-color: #22c55e;
+    }
+
+    .btn-rating.selected-dislike {
+      background-color: #fee2e2;
+      border-color: #ef4444;
     }
   </style>
 </head>
 <body>
-  <div class="container text-center" style="max-width: 900px;">
+  <div class="container-fluid" style="max-width: 900px;">
     
     <!-- ENCABEZADO -->
-    <h1 class="fw-bold my-2 text-primary no-print" style="font-size: 1.8rem;">🏁 ITINERARIO DEL RALLY 🏁</h1>
-    <h2 class="d-none d-print-block text-center fw-bold mb-3">Rally Universitario - Itinerario Oficial</h2>
-
-    <div class="card card-custom mb-4">
-      
-      <!-- CONTROLES DE FILTRO E IMPRESIÓN (no salen en la impresión) -->
-      <div class="row g-3 align-items-center mb-3 no-print">
-        <div class="col-md-6 text-start">
-          <label for="selectEquipo" class="form-label fw-bold">Filtrar por Equipo:</label>
-          <select id="selectEquipo" class="form-select form-select-lg" onchange="filtrarTabla()">
-            <option value="TODOS">-- Ver Todos los Equipos --</option>
-          </select>
-        </div>
-        <div class="col-md-6 text-end">
-          <button class="btn btn-success btn-lg fw-bold w-100" onclick="window.print()">
-            🖨️ Imprimir Itinerario
-          </button>
-        </div>
+    <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+      <div>
+        <h3 class="fw-bold text-primary m-0" style="font-size: 1.4rem;">📅 ITINERARIO DEL EQUIPO</h3>
       </div>
-
-      <!-- MENSAJE DE ESTADO -->
-      <div id="msgCargando" class="fw-bold text-muted my-4">⏳ Cargando programación de rondas...</div>
-
-      <!-- TABLA DE ITINERARIO -->
-      <div id="areaTabla" class="table-responsive d-none">
-        <table class="table table-striped table-bordered align-middle text-center m-0">
-          <thead class="table-dark">
-            <tr>
-              <th style="width: 10%;">Ronda</th>
-              <th style="width: 30%;">Estación / Actividad</th>
-              <th style="width: 30%;">Equipo 1</th>
-              <th style="width: 30%;">Equipo 2</th>
-            </tr>
-          </thead>
-          <tbody id="tablaCuerpo">
-            <!-- Carga dinámicamente -->
-          </tbody>
-        </table>
+      <div class="d-flex gap-2">
+        <button id="btnRefresh" class="btn btn-sm btn-outline-primary fw-bold" onclick="refrescarDatos()">
+          🔄 Actualizar
+        </button>
+        <button class="btn btn-sm btn-success fw-bold" onclick="window.print()">
+          🖨️ Imprimir
+        </button>
       </div>
-
     </div>
+
+    <!-- SELECTOR ÚNICO DE EQUIPO -->
+    <div class="card-custom mb-3 no-print">
+      <label for="selectEquipo" class="form-label fw-bold text-dark fs-6 mb-1">Selecciona tu Equipo:</label>
+      <select id="selectEquipo" class="form-select form-select-lg" onchange="bloquearYMostrarItinerario()">
+        <option value="">-- Cargando lista de equipos... --</option>
+      </select>
+      <div id="txtBloqueo" class="mt-2 text-danger fw-bold d-none" style="font-size: 0.85rem;">🔒 Equipo fijado. Presiona "Actualizar" si hay cambios.</div>
+    </div>
+
+    <!-- CONTENEDOR DE TARJETAS FLEX/GRID -->
+    <div id="areaItinerario" class="d-none">
+      <div id="gridRondas" class="grid-itinerario">
+        <!-- Tarjetas dinámicas aquí -->
+      </div>
+    </div>
+
   </div>
 
   <script>
     let datosCargados = null;
 
     document.addEventListener("DOMContentLoaded", function() {
-      cargarItinerario();
+      cargarItinerarioInicial();
     });
 
-    function cargarItinerario() {
+    function cargarItinerarioInicial() {
       google.script.run.withSuccessHandler(function(res) {
         datosCargados = res;
+
+        const selectEq = document.getElementById('selectEquipo');
+        selectEq.innerHTML = '<option value="">-- Seleccionar Equipo --</option>';
         
-        // Llenar selector de equipos
-        const select = document.getElementById('selectEquipo');
-        select.innerHTML = '<option value="TODOS">-- Ver Todos los Equipos --</option>';
-        
-        Object.keys(res.mapaEquipos).forEach(clave => {
-          let eq = res.mapaEquipos[clave];
-          let option = document.createElement('option');
-          option.value = clave;
-          option.text = `${eq.nombre}`;
-          select.appendChild(option);
+        let equiposUnicos = {};
+        res.fixture.forEach(item => {
+          equiposUnicos[item.eq1Nombre] = item.eq1Nombre;
+          equiposUnicos[item.eq2Nombre] = item.eq2Nombre;
         });
 
-        document.getElementById('msgCargando').classList.add('d-none');
-        document.getElementById('areaTabla').classList.remove('d-none');
-        
-        filtrarTabla();
+        Object.keys(equiposUnicos).sort().forEach(nombreEq => {
+          let option = document.createElement('option');
+          option.value = nombreEq;
+          option.text = nombreEq;
+          selectEq.appendChild(option);
+        });
+
       }).getItinerarioCompleto();
     }
 
-    function filtrarTabla() {
+    function bloquearYMostrarItinerario() {
+      const select = document.getElementById('selectEquipo');
+      if (!select.value) return;
+
+      select.disabled = true;
+      document.getElementById('txtBloqueo').classList.remove('d-none');
+      document.getElementById('areaItinerario').classList.remove('d-none');
+
+      generarTarjetasPorEquipo();
+    }
+
+    function refrescarDatos() {
+      const select = document.getElementById('selectEquipo');
+      if (!select.value) return;
+
+      const btn = document.getElementById('btnRefresh');
+      btn.innerHTML = "⏳...";
+      btn.disabled = true;
+
+      google.script.run.withSuccessHandler(function(res) {
+        datosCargados = res;
+        generarTarjetasPorEquipo();
+
+        btn.innerHTML = "🔄 Actualizar";
+        btn.disabled = false;
+      }).getItinerarioCompleto();
+    }
+
+    function generarTarjetasPorEquipo() {
       if (!datosCargados) return;
 
-      const equipoSel = document.getElementById('selectEquipo').value;
-      const tbody = document.getElementById('tablaCuerpo');
-      tbody.innerHTML = "";
+      const miEquipo = document.getElementById('selectEquipo').value;
+      const contenedor = document.getElementById('gridRondas');
+      contenedor.innerHTML = "";
 
-      let listaFiltrada = datosCargados.fixture;
+      // Filtrar sólo las rondas del equipo seleccionado
+      let fixtureMiEquipo = datosCargados.fixture.filter(item => 
+        item.eq1Nombre === miEquipo || item.eq2Nombre === miEquipo
+      );
 
-      // Filtrar si seleccionaron un equipo específico
-      if (equipoSel !== "TODOS") {
-        listaFiltrada = listaFiltrada.filter(item => 
-          item.eq1Clave === equipoSel || item.eq2Clave === equipoSel
-        );
-        // Ordenar por ronda secuencial para ese equipo
-        listaFiltrada.sort((a, b) => a.ronda - b.ronda);
-      } else {
-        // Ordenar por Ronda y luego Estación
-        listaFiltrada.sort((a, b) => (a.ronda - b.ronda) || (a.numEstacion - b.numEstacion));
-      }
+      // Ordenar por Ronda (1 a 10)
+      fixtureMiEquipo.sort((a, b) => Number(a.ronda) - Number(b.ronda));
 
-      if (listaFiltrada.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="text-muted fw-bold">No hay enfrentamientos programados.</td></tr>`;
-        return;
-      }
+      fixtureMiEquipo.forEach(item => {
+        let esEq1 = (item.eq1Nombre === miEquipo);
+        let rivalNombre = esEq1 ? item.eq2Nombre : item.eq1Nombre;
+        let rivalColor = esEq1 ? item.eq2Color : item.eq1Color;
 
-      listaFiltrada.forEach(item => {
-        let esEq1Destacado = (equipoSel !== "TODOS" && item.eq1Clave === equipoSel) ? 'fw-bold table-warning' : '';
-        let esEq2Destacado = (equipoSel !== "TODOS" && item.eq2Clave === equipoSel) ? 'fw-bold table-warning' : '';
+        let esFinalizado = (item.estatus === "FINALIZADO");
+        let claseTarjeta = esFinalizado ? "tarjeta-ronda tarjeta-finalizado" : "tarjeta-ronda";
+        let badgeEstado = esFinalizado 
+          ? `<span class="badge-finalizado">✅ COMPLETA</span>` 
+          : `<span class="badge-pendiente">⏳ PENDIENTE</span>`;
 
-        let rowHtml = `<tr>
-          <td class="fw-bold fs-5">R${item.ronda}</td>
-          <td class="text-start fw-bold">Estación ${item.numEstacion}<br><small class="text-muted">${item.nombreEstacion}</small></td>
-          <td class="text-start ${esEq1Destacado}">
-            <span class="badge-color" style="background-color: ${item.eq1Color};"></span>
-            ${item.eq1Nombre}
-          </td>
-          <td class="text-start ${esEq2Destacado}">
-            <span class="badge-color" style="background-color: ${item.eq2Color};"></span>
-            ${item.eq2Nombre}
-          </td>
-        </tr>`;
-        tbody.innerHTML += rowHtml;
+        let etiquetaEstacion = `📍 Estación ${item.numEstacion}`;
+        let etiquetaRevancha = (String(item.ronda) === "10") 
+          ? ` <span class="badge bg-warning text-dark ms-1 fw-bold">🔥 REVANCHA</span>` 
+          : "";
+
+        let card = document.createElement('div');
+        card.className = claseTarjeta;
+
+        card.innerHTML = `
+          <div>
+            <div class="ronda-header">
+              <span class="ronda-num">Ronda ${item.ronda}</span>
+              ${badgeEstado}
+            </div>
+
+            <div class="estacion-title">
+              ${etiquetaEstacion} <span class="estacion-sub">${item.nombreEstacion}</span>
+              ${etiquetaRevancha}
+            </div>
+          </div>
+
+          <div class="rival-box mt-2">
+            <span class="badge-color" style="background-color: ${rivalColor};"></span>
+            <div>
+              <small class="text-muted d-block" style="font-size: 0.7rem; line-height: 1;">RIVAL:</small>
+              <strong style="font-size: 0.9rem; color: #0f172a;">${rivalNombre}</strong>
+            </div>
+          </div>
+
+          <div class="rating-box">
+            <small class="text-muted fw-semibold" style="font-size: 0.75rem;">¿Qué tal la actividad?</small>
+            <div class="d-flex gap-1">
+              <button class="btn-rating" onclick="evaluarActividad(this, 'LIKE', '${item.ronda}', '${item.numEstacion}', '${item.nombreEstacion}')" title="Me gustó">👍</button>
+              <button class="btn-rating" onclick="evaluarActividad(this, 'DISLIKE', '${item.ronda}', '${item.numEstacion}', '${item.nombreEstacion}')" title="No me gustó">👎</button>
+            </div>
+          </div>
+        `;
+
+        contenedor.appendChild(card);
       });
+
+      if (fixtureMiEquipo.length === 0) {
+        contenedor.innerHTML = `<div class="text-center text-muted py-4 w-100">No se encontraron encuentros asignados a este equipo.</div>`;
+      }
+    }
+
+    function evaluarActividad(btn, voto, ronda, numEstacion, nombreEstacion) {
+      const miEquipo = document.getElementById('selectEquipo').value;
+      if (!miEquipo) return;
+
+      const contenedorBotones = btn.parentElement;
+      const botones = contenedorBotones.querySelectorAll('.btn-rating');
+      
+      // Resaltado visual inmediato
+      botones.forEach(b => b.classList.remove('selected-like', 'selected-dislike'));
+      if (voto === 'LIKE') {
+        btn.classList.add('selected-like');
+      } else {
+        btn.classList.add('selected-dislike');
+      }
+
+      // Objeto con la información requerida
+      const payload = {
+        equipo: miEquipo,
+        ronda: ronda,
+        numEstacion: numEstacion,
+        nombreEstacion: nombreEstacion,
+        voto: voto
+      };
+
+      // Guardar en la hoja de Google Sheets
+      google.script.run
+        .withSuccessHandler(function(res) {
+          console.log("Evaluación registrada con éxito");
+        })
+        .withFailureHandler(function(err) {
+          console.error("Error al guardar evaluación:", err);
+        })
+        .guardarEvaluacion(payload);
     }
   </script>
 </body>

@@ -88,57 +88,56 @@ function getDatosDashboard() {
 function getItinerarioCompleto() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheetFixture = ss.getSheetByName("Fixture");
+  const sheetEstaciones = ss.getSheetByName("Estaciones");
   
-  if (!sheetFixture) return { estaciones: {}, mapaEquipos: {}, fixture: [] };
+  if (!sheetFixture) return { fixture: [], estaciones: {} };
 
-  const dataFixture = sheetFixture.getDataRange().getValues();
   const mapaEquipos = getMapaEquipos();
+  const dataFixture = sheetFixture.getDataRange().getValues();
   
-  // Mapeo de Estaciones
-  let sheetEstaciones = ss.getSheetByName("Estaciones") || ss.getSheetByName("Estacion");
+  // Mapa de nombres de estaciones
   let mapaEstaciones = {};
   if (sheetEstaciones) {
-    let dataEst = sheetEstaciones.getDataRange().getValues();
+    const dataEst = sheetEstaciones.getDataRange().getValues();
     for (let i = 1; i < dataEst.length; i++) {
-      if (dataEst[i][0] !== "") {
-        mapaEstaciones[dataEst[i][0]] = dataEst[i][1];
-      }
+      mapaEstaciones[String(dataEst[i][0])] = dataEst[i][1];
     }
   }
 
   let listaFixture = [];
-  
-  for (let i = 1; i < dataFixture.length; i++) {
-    let numEstacion = dataFixture[i][1];
-    let ronda = dataFixture[i][2];
-    let eq1Val = String(dataFixture[i][3]).trim(); // "Equipo 10" o "10" o "J"
-    let eq2Val = String(dataFixture[i][4]).trim(); // "Equipo 17" o "17" o "Q"
-    
-    if (ronda && eq1Val !== "") {
-      // Buscar información del Equipo 1
-      let infoEq1 = mapaEquipos[eq1Val] || { nombre: eq1Val, color: '#6c757d' };
-      // Buscar información del Equipo 2
-      let infoEq2 = mapaEquipos[eq2Val] || { nombre: eq2Val, color: '#6c757d' };
 
-      listaFixture.push({
-        numEstacion: numEstacion,
-        nombreEstacion: mapaEstaciones[numEstacion] || `Estación ${numEstacion}`,
-        ronda: ronda,
-        eq1Clave: eq1Val,
-        eq1Nombre: infoEq1.nombre,
-        eq1Color: infoEq1.color,
-        eq2Clave: eq2Val,
-        eq2Nombre: infoEq2.nombre,
-        eq2Color: infoEq2.color
-      });
-    }
+  for (let i = 1; i < dataFixture.length; i++) {
+    let idEnf = dataFixture[i][0];
+    let numEstacion = String(dataFixture[i][1]);
+    let ronda = dataFixture[i][2];
+    let eq1Clave = String(dataFixture[i][3]);
+    let eq2Clave = String(dataFixture[i][4]);
+    let ganador = String(dataFixture[i][5]);
+    let estatus = String(dataFixture[i][6]); // Columna G: FINALIZADO / PENDIENTE
+
+    let eq1Info = mapaEquipos[eq1Clave] || { nombre: eq1Clave, color: '#6c757d' };
+    let eq2Info = mapaEquipos[eq2Clave] || { nombre: eq2Clave, color: '#6c757d' };
+
+    listaFixture.push({
+      id: idEnf,
+      numEstacion: numEstacion,
+      nombreEstacion: mapaEstaciones[numEstacion] || `Estación ${numEstacion}`,
+      ronda: ronda,
+      eq1Nombre: eq1Info.nombre,
+      eq1Color: eq1Info.color,
+      eq2Nombre: eq2Info.nombre,
+      eq2Color: eq2Info.color,
+      ganador: ganador,
+      estatus: estatus
+    });
   }
 
   return {
-    mapaEquipos: mapaEquipos,
-    fixture: listaFixture
+    fixture: listaFixture,
+    mapaEstaciones: mapaEstaciones
   };
 }
+
 
 // Obtener la lista dinámica de estaciones desde la hoja "Estaciones" o "Estacion"
 function getListaEstaciones() {
@@ -171,11 +170,11 @@ function getListaEstaciones() {
 
 // Validar PIN de Organizadores (Puedes cambiar '1234' por el PIN que tú elijas)
 function validarPinOrganizador(pinIngresado) {
-  const PIN_CORRECTO = "1234"; // 👈 CAMBIA TU PIN AQUÍ
+  const PIN_CORRECTO = "5013"; // 👈 CAMBIA TU PIN AQUÍ
   return pinIngresado === PIN_CORRECTO;
 }
 
-// Obtener mapa flexible de Equipos (Acepta Clave, Número o Nombre)
+// Obtener mapa de Equipos incluyendo el Maestro Responsable
 function getMapaEquipos() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheetEquipos = ss.getSheetByName("Equipos") || ss.getSheetByName("Equipo");
@@ -186,25 +185,30 @@ function getMapaEquipos() {
   let mapaEquipos = {};
 
   for (let i = 1; i < data.length; i++) {
-    let numEquipo = String(data[i][0]).trim();  // Columna A: ID (1, 2, 3...)
-    let letraClave = String(data[i][1]).trim(); // Columna B: Letra (A, B, C...)
-    let color = String(data[i][3]).trim();      // Columna D: Hexadecimal (#FF0000)
-    let nombre = String(data[i][4]).trim();     // Columna E: Nombre asignado
+    let numEquipo = String(data[i][0]).trim();  // Columna A: No_Equipo
+    let letraClave = String(data[i][1]).trim(); // Columna B: Letra
+    let maestro = String(data[i][2]).trim();    // Columna C: Maestro_Responsable 👈
+    let color = String(data[i][3]).trim();      // Columna D: Color
+    let nombreEq = String(data[i][4]).trim();   // Columna E: Nombre del Equipo
 
     if (numEquipo !== "" && numEquipo !== "undefined") {
+      // Formatear Nombre Combinado (Ejemplo: "Equipo 1 - ANTONIO TALAMANTE")
+      let nombreBase = nombreEq || `Equipo ${numEquipo}`;
+      let nombreMostrado = maestro ? `${nombreBase} - ${maestro}` : nombreBase;
+
       let infoEquipo = {
         id: numEquipo,
-        nombre: nombre || `Equipo ${numEquipo}`,
+        nombre: nombreMostrado,
+        maestro: maestro,
         color: color || '#6c757d'
       };
 
-      // Guardamos la referencia principal por ID único
+      // Guardar referencias bajo múltiples aliases para que todas las páginas coincidan
       mapaEquipos[numEquipo] = infoEquipo;
-      
-      // Alias para búsqueda rápida en otras funciones
       mapaEquipos[`Equipo ${numEquipo}`] = infoEquipo;
       mapaEquipos[letraClave] = infoEquipo;
-      if (nombre) mapaEquipos[nombre] = infoEquipo;
+      if (nombreEq) mapaEquipos[nombreEq] = infoEquipo;
+      if (nombreMostrado) mapaEquipos[nombreMostrado] = infoEquipo;
     }
   }
   return mapaEquipos;
@@ -243,8 +247,8 @@ function getEnfrentamientoActual(numEstacion) {
   return null;
 }
 
-// Registrar resultado (3 Pts ganador / 1 Pt empate)
-function registrarResultado(row, ganadorClave, eq1Clave, eq2Clave) {
+// Registrar resultado (3 Pts ganador / 1 Pt empate) + (Evaluación de Energía de cada equipo)
+function registrarResultado(row, ganadorClave, eq1Clave, eq2Clave, energiaEq1, energiaEq2) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName("Fixture");
   
@@ -262,10 +266,12 @@ function registrarResultado(row, ganadorClave, eq1Clave, eq2Clave) {
     ptsEq2 = 3;
   }
   
-  sheet.getRange(row, 6).setValue(ganadorClave); // Columna F: Ganador
-  sheet.getRange(row, 7).setValue("FINALIZADO"); // Columna G: Estatus
-  sheet.getRange(row, 8).setValue(ptsEq1);       // Columna H: Puntos Equipo 1
-  sheet.getRange(row, 9).setValue(ptsEq2);       // Columna I: Puntos Equipo 2
+  sheet.getRange(row, 6).setValue(ganadorClave);                // Columna F: Ganador
+  sheet.getRange(row, 7).setValue("FINALIZADO");                // Columna G: Estatus
+  sheet.getRange(row, 8).setValue(ptsEq1);                      // Columna H: Puntos Eq 1
+  sheet.getRange(row, 9).setValue(ptsEq2);                      // Columna I: Puntos Eq 2
+  sheet.getRange(row, 10).setValue(energiaEq1 || 3);            // Columna J: Energía Eq 1 (1 a 5)
+  sheet.getRange(row, 11).setValue(energiaEq2 || 3);            // Columna K: Energía Eq 2 (1 a 5)
   
   return { success: true };
 }
@@ -325,4 +331,33 @@ function getTablaPosiciones() {
   ranking.sort((a, b) => b.pts - a.pts);
   
   return ranking;
+}
+
+function guardarEvaluacion(datos) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName("Evaluaciones");
+    
+    // Si la pestaña no existe, la crea con los encabezados
+    if (!sheet) {
+      sheet = ss.insertSheet("Evaluaciones");
+      sheet.appendRow(["Fecha y Hora", "Equipo", "Ronda", "N° Estación", "Nombre Estación", "Voto"]);
+      sheet.getRange("A1:F1").setFontWeight("bold").setBackground("#e2e8f0");
+    }
+
+    // Agregar la fila con el nuevo voto
+    const fechaHora = new Date();
+    sheet.appendRow([
+      fechaHora,
+      datos.equipo,
+      datos.ronda,
+      datos.numEstacion,
+      datos.nombreEstacion,
+      datos.voto // "LIKE" o "DISLIKE"
+    ]);
+
+    return { status: "OK" };
+  } catch (error) {
+    return { status: "ERROR", message: error.message };
+  }
 }
