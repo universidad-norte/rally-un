@@ -361,3 +361,110 @@ function guardarEvaluacion(datos) {
     return { status: "ERROR", message: error.message };
   }
 }
+
+// Obtener historial de partidos capturados por estación
+function getHistorialEstacion(numEstacion) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("Fixture");
+  if (!sheet) return [];
+
+  const data = sheet.getDataRange().getValues();
+  const mapaEquipos = getMapaEquipos();
+  let historial = [];
+
+  for (let i = 1; i < data.length; i++) {
+    let rowEstacion = String(data[i][1]);
+    let estatus = String(data[i][6]);
+
+    if (rowEstacion === String(numEstacion) && estatus === "FINALIZADO") {
+      let eq1Clave = String(data[i][3]);
+      let eq2Clave = String(data[i][4]);
+      let ganador = String(data[i][5]);
+
+      historial.push({
+        row: i + 1,
+        ronda: data[i][2],
+        eq1Nombre: (mapaEquipos[eq1Clave] || {}).nombre || eq1Clave,
+        eq2Nombre: (mapaEquipos[eq2Clave] || {}).nombre || eq2Clave,
+        eq1Clave: eq1Clave,
+        eq2Clave: eq2Clave,
+        ganadorActual: ganador,
+        energiaEq1: data[i][9] || 3,
+        energiaEq2: data[i][10] || 3
+      });
+    }
+  }
+  return historial;
+}
+
+// Modificar un resultado previo y registrar el cambio en un Log
+function editarResultadoCapturado(row, nuevoGanador, eq1Clave, eq2Clave, motivo) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheetFixture = ss.getSheetByName("Fixture");
+  
+  let ganadorAnterior = sheetFixture.getRange(row, 6).getValue();
+  
+  let ptsEq1 = 0;
+  let ptsEq2 = 0;
+  if (nuevoGanador === "EMPATE") { ptsEq1 = 1; ptsEq2 = 1; }
+  else if (nuevoGanador === eq1Clave) { ptsEq1 = 3; ptsEq2 = 0; }
+  else if (nuevoGanador === eq2Clave) { ptsEq1 = 0; ptsEq2 = 3; }
+
+  // 1. Actualizar Fixture
+  sheetFixture.getRange(row, 6).setValue(nuevoGanador);
+  sheetFixture.getRange(row, 8).setValue(ptsEq1);
+  sheetFixture.getRange(row, 9).setValue(ptsEq2);
+
+  // 2. Registrar en la pestaña "Log_Cambios" (Se crea si no existe)
+  let sheetLog = ss.getSheetByName("Log_Cambios");
+  if (!sheetLog) {
+    sheetLog = ss.insertSheet("Log_Cambios");
+    sheetLog.appendRow(["Fecha y Hora", "Fila Fixture", "Ganador Anterior", "Ganador Nuevo", "Motivo / Usuario"]);
+    sheetLog.getRange("A1:E1").setFontWeight("bold").setBackground("#fee2e2");
+  }
+
+  sheetLog.appendRow([new Date(), row, ganadorAnterior, nuevoGanador, motivo || "Edición manual desde panel de estación"]);
+
+  return { success: true };
+}
+
+// Obtener todos los enfrentamientos de una estación (Pendientes y Finalizados) para la hoja impresa
+function getPlanillaCompletaEstacion(numEstacion) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("Fixture");
+  if (!sheet) return [];
+
+  const data = sheet.getDataRange().getValues();
+  const mapaEquipos = getMapaEquipos();
+  let listaEstacion = [];
+
+  for (let i = 1; i < data.length; i++) {
+    let rowEstacion = String(data[i][1]);
+
+    if (rowEstacion === String(numEstacion)) {
+      let eq1Clave = String(data[i][3]);
+      let eq2Clave = String(data[i][4]);
+      let ganador = String(data[i][5]);
+      let estatus = String(data[i][6]);
+
+      let eq1Nombre = (mapaEquipos[eq1Clave] || {}).nombre || eq1Clave;
+      let eq2Nombre = (mapaEquipos[eq2Clave] || {}).nombre || eq2Clave;
+
+      let ganadorTexto = "";
+      if (ganador === eq1Clave) ganadorTexto = eq1Nombre;
+      else if (ganador === eq2Clave) ganadorTexto = eq2Nombre;
+      else if (ganador === "EMPATE") ganadorTexto = "🤝 EMPATE";
+
+      listaEstacion.push({
+        ronda: data[i][2],
+        eq1Nombre: eq1Nombre,
+        eq2Nombre: eq2Nombre,
+        estatus: estatus,
+        ganadorTexto: ganadorTexto
+      });
+    }
+  }
+
+  // Ordenar de la Ronda 1 a la 10
+  return listaEstacion.sort((a, b) => Number(a.ronda) - Number(b.ronda));
+}
