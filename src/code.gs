@@ -48,6 +48,8 @@ function getDatosDashboard() {
     let eq2Val = String(dataFixture[i][4]).trim();
     let ganadorVal = String(dataFixture[i][5]).trim();
     let estatus = String(dataFixture[i][6]).trim();
+    let energiaEq1 = Number(dataFixture[i][7]) || 3;
+    let energiaEq2 = Number(dataFixture[i][8]) || 3;
 
     if (ronda && numEstacion) {
       totalPartidos++;
@@ -63,8 +65,10 @@ function getDatosDashboard() {
         ronda: ronda,
         eq1Nombre: infoEq1.nombre,
         eq1Color: infoEq1.color,
+        energiaEq1: energiaEq1,
         eq2Nombre: infoEq2.nombre,
         eq2Color: infoEq2.color,
+        energiaEq2: energiaEq2,
         estatus: estatus,
         ganador: ganadorVal,
         ganadorNombre: infoGanador ? infoGanador.nombre : (ganadorVal === 'EMPATE' ? '🤝 Empate' : '')
@@ -90,7 +94,7 @@ function getItinerarioCompleto() {
   const sheetFixture = ss.getSheetByName("Fixture");
   const sheetEstaciones = ss.getSheetByName("Estaciones");
   
-  if (!sheetFixture) return { fixture: [], estaciones: {} };
+  if (!sheetFixture) return { fixture: [], estaciones: {}, rondaActiva: 1 };
 
   const mapaEquipos = getMapaEquipos();
   const dataFixture = sheetFixture.getDataRange().getValues();
@@ -134,10 +138,10 @@ function getItinerarioCompleto() {
 
   return {
     fixture: listaFixture,
-    mapaEstaciones: mapaEstaciones
+    mapaEstaciones: mapaEstaciones,
+    rondaActiva: getRondaActiva()
   };
 }
-
 
 // Obtener la lista dinámica de estaciones desde la hoja "Estaciones" o "Estacion"
 function getListaEstaciones() {
@@ -467,4 +471,43 @@ function getPlanillaCompletaEstacion(numEstacion) {
 
   // Ordenar de la Ronda 1 a la 10
   return listaEstacion.sort((a, b) => Number(a.ronda) - Number(b.ronda));
+}
+
+// Leer la Ronda Activa desde la pestaña "Config" (Celda B1)
+function getRondaActiva() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheetConfig = ss.getSheetByName("Config");
+    
+    // Si la pestaña no existe, la crea automáticamente con valor por defecto 1
+    if (!sheetConfig) {
+      sheetConfig = ss.insertSheet("Config");
+      sheetConfig.getRange("A1").setValue("Ronda Activa");
+      sheetConfig.getRange("B1").setValue(1);
+      return 1;
+    }
+    
+    let ronda = Number(sheetConfig.getRange("B1").getValue());
+    return ronda > 0 ? ronda : 1;
+  } catch (e) {
+    return 1;
+  }
+}
+
+// Guardar la Ronda Activa en la pestaña "Config" (Celda B1)
+function setRondaActiva(nuevaRonda) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheetConfig = ss.getSheetByName("Config");
+    
+    if (!sheetConfig) {
+      sheetConfig = ss.insertSheet("Config");
+      sheetConfig.getRange("A1").setValue("Ronda Activa");
+    }
+    
+    sheetConfig.getRange("B1").setValue(Number(nuevaRonda));
+    return { success: true, ronda: nuevaRonda };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
 }

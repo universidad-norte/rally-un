@@ -90,6 +90,11 @@
       color: var(--text-vs);
     }
 
+    .emoji-energia {
+      font-size: 0.95rem;
+      margin-left: 3px;
+    }
+
     .table-custom-header {
       background-color: var(--table-header-bg) !important;
       color: var(--table-header-text) !important;
@@ -189,6 +194,18 @@
       cargarDashboard();
     });
 
+    // Mapeo numérico de energía/entusiasmo a emoji
+    function getEmojiEnergia(valor) {
+      switch (Number(valor)) {
+        case 1: return '😡';
+        case 2: return '😠';
+        case 3: return '😐';
+        case 4: return '😀';
+        case 5: return '🤩';
+        default: return '';
+      }
+    }
+
     // Función para cambiar de Modo Oscuro a Modo Claro y viceversa
     function toggleTema() {
       const body = document.body;
@@ -227,16 +244,23 @@
             let match = res.matriz[clave];
 
             if (match) {
-              let claseEstatus = match.estatus === "FINALIZADO" ? "status-finalizado" : "status-pendiente";
-              let textoGanador = match.estatus === "FINALIZADO" ? `<div class="txt-ganador">🏆 ${match.ganadorNombre}</div>` : '';
+              let esFinalizado = match.estatus === "FINALIZADO";
+              let claseEstatus = esFinalizado ? "status-finalizado" : "status-pendiente";
+              let textoGanador = esFinalizado ? `<hr><div class="txt-ganador">🏆 ${match.ganadorNombre}</div>` : '';
 
-              rowHtml += `<td class="celda-partido ${claseEstatus}">
+              // Emojis de entusiasmo (se muestran al finalizar la captura)
+              let emojiEq1 = esFinalizado ? `<span class="emoji-energia" title="Entusiasmo: ${match.energiaEq1}">${getEmojiEnergia(match.energiaEq1)}</span>` : '';
+              let emojiEq2 = esFinalizado ? `<span class="emoji-energia" title="Entusiasmo: ${match.energiaEq2}">${getEmojiEnergia(match.energiaEq2)}</span>` : '';
+
+              rowHtml += `
+              <td class="celda-partido ${claseEstatus}">
                 <div>
-                  <span class="badge-color" style="background-color: ${match.eq1Color};"></span>${match.eq1Nombre}
+                  <!-- <span class="badge-color" style="background-color: ${match.eq1Color};"></span>${match.eq1Nombre} ${emojiEq1} -->
+                  ${match.eq1Nombre} ${emojiEq1}
                 </div>
                 <div class="txt-vs small my-1">vs</div>
                 <div>
-                  <span class="badge-color" style="background-color: ${match.eq2Color};"></span>${match.eq2Nombre}
+                  ${match.eq2Nombre} ${emojiEq2}
                 </div>
                 ${textoGanador}
               </td>`;
